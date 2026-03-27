@@ -1,16 +1,30 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/anxhukumar/rabbitmq-microservices-dummy/api/handlers"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const port = "8080"
+const rabbitmqConnURL = "amqp://guest:guest@localhost:5672/"
 
 func main() {
+	amqpConn, err := amqp.Dial(rabbitmqConnURL)
+	if err != nil {
+		log.Println("rabbitmq connection failed")
+		return
+	}
+	defer amqpConn.Close()
+	log.Println("connection to rabbitmq successful")
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/healthz", handlers.HandlerReadiness)
@@ -22,6 +36,31 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Printf("Server running on port: %s\n", port)
-	log.Fatal(serv.ListenAndServe())
+	// Run server in a goroutine
+	go func() {
+		log.Printf("server running on port: %s\n", port)
+		if err := serv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	// Create channel to listen for OS signals
+	sigChan := make(chan os.Signal, 1)
+
+	// Notify on interrupt signals
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Block here until signal is received
+	sig := <-sigChan
+	log.Printf("received signal: %v, shutting down...\n", sig)
+
+	// Graceful shutdown of HTTP server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := serv.Shutdown(ctx); err != nil {
+		log.Printf("server shutdown failed: %v\n", err)
+	}
+
+	log.Println("server exited properly")
 }
