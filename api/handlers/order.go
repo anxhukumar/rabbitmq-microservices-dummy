@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/anxhukumar/rabbitmq-microservices-dummy/rabbitmq"
 )
 
 type OrderRequest struct {
@@ -12,7 +14,14 @@ type OrderRequest struct {
 	ProductID int `json:"product_id"`
 }
 
-func Order(w http.ResponseWriter, r *http.Request) {
+const (
+	exchnage   = "orders"
+	routingKey = "order.created"
+)
+
+func (s *Server) Order(w http.ResponseWriter, r *http.Request) {
+
+	defer r.Body.Close()
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -25,4 +34,10 @@ func Order(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send messages to message broker
+	err := rabbitmq.PublishJSON(r.Context(), s.PublishCh, exchnage, routingKey, orderRequest)
+	if err != nil {
+		log.Printf("error publishing json to rabbitmq: %s", err)
+		return
+	}
+
 }

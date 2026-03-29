@@ -17,6 +17,7 @@ const port = "8080"
 const rabbitmqConnURL = "amqp://guest:guest@localhost:5672/"
 
 func main() {
+	// amqp: connection
 	amqpConn, err := amqp.Dial(rabbitmqConnURL)
 	if err != nil {
 		log.Println("rabbitmq connection failed")
@@ -25,10 +26,21 @@ func main() {
 	defer amqpConn.Close()
 	log.Println("connection to rabbitmq successful")
 
+	// amqp: channel
+	pubChan, err := amqpConn.Channel()
+	if err != nil {
+		log.Printf("error while creating channel: %s\n", err)
+		return
+	}
+
+	// Initialize Server
+	server := handlers.NewServer(pubChan)
+
+	// http server
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /api/healthz", handlers.HandlerReadiness)
-	mux.HandleFunc("POST /api/order", handlers.Order)
+	mux.HandleFunc("GET /api/healthz", server.HandlerReadiness)
+	mux.HandleFunc("POST /api/order", server.Order)
 
 	serv := &http.Server{
 		Handler:           mux,
