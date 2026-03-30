@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/anxhukumar/rabbitmq-microservices-dummy/rabbitmq"
+	"github.com/anxhukumar/rabbitmq-microservices-dummy/internal/rabbitmq"
 )
 
 type OrderRequest struct {

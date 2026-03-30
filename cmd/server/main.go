@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/anxhukumar/rabbitmq-microservices-dummy/api/handlers"
+	"github.com/anxhukumar/rabbitmq-microservices-dummy/internal/handlers"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -20,11 +20,11 @@ func main() {
 	// amqp: connection
 	amqpConn, err := amqp.Dial(rabbitmqConnURL)
 	if err != nil {
-		log.Println("rabbitmq connection failed")
+		log.Println("rabbitmq connection failed in server")
 		return
 	}
 	defer amqpConn.Close()
-	log.Println("connection to rabbitmq successful")
+	log.Println("connection to rabbitmq successful in server")
 
 	// amqp: channel
 	pubChan, err := amqpConn.Channel()
