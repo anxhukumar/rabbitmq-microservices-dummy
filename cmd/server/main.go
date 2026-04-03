@@ -26,15 +26,8 @@ func main() {
 	defer amqpConn.Close()
 	log.Println("connection to rabbitmq successful in server")
 
-	// amqp: channel
-	pubChan, err := amqpConn.Channel()
-	if err != nil {
-		log.Printf("error while creating channel: %s\n", err)
-		return
-	}
-
-	// Initialize Server
-	server := handlers.NewServer(pubChan)
+	// Create new Server
+	server := handlers.NewServer(amqpConn)
 
 	// http server
 	mux := http.NewServeMux()

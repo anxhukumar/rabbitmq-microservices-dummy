@@ -2,16 +2,17 @@ package main
 
 import (
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/anxhukumar/rabbitmq-microservices-dummy/internal/rabbitmq"
+	"github.com/anxhukumar/rabbitmq-microservices-dummy/internal/workers/inventory"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (
-	rabbitmqConnURL        = "amqp://guest:guest@localhost:5672/"
-	orderExchange          = "orders.exchange"
-	orderCreatedQueue      = "inventory.order.queue"
-	orderCreatedRoutingKey = "order.created.key"
+	rabbitmqConnURL = "amqp://guest:guest@localhost:5672/"
 )
 
 func main() {
@@ -22,18 +23,31 @@ func main() {
 		return
 	}
 	defer amqpConn.Close()
+
 	log.Println("connection to rabbitmq successful in inventory")
 
-	// Declare and bind queue
-	_, _, err = rabbitmq.DeclareAndBind(
+	// Create, bind and subscribe queue
+	if err = rabbitmq.SubscribeJSON(
 		amqpConn,
-		orderExchange,
-		orderCreatedQueue,
-		orderCreatedRoutingKey,
+		inventory.Exchange,
+		inventory.InventoryQueue,
+		inventory.InventoryRoutingKey,
 		rabbitmq.Transient,
-	)
-	if err != nil {
-		log.Printf("error while declaring and binding queue in inventory: %s\n", err)
+		inventory.InventoryWorker,
+	); err != nil {
+		log.Printf("error while subscribing json in inventory: %s\n", err)
 		return
 	}
+
+	// Create channel to listen for OS signals
+	sigChan := make(chan os.Signal, 1)
+
+	// Notify on interrupt signals
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Block here until signal is received
+	<-sigChan
+
+	log.Printf("Inventory worker closed...")
+
 }

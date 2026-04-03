@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -80,4 +81,60 @@ func DeclareAndBind(
 	}
 
 	return channel, queue, nil
+}
+
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType QueueType,
+	handler func(T, *amqp.Channel),
+) error {
+
+	// Declare and bind queue
+	channel, queue, err := DeclareAndBind(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType,
+	)
+	if err != nil {
+		err = fmt.Errorf("error while declaring and binding queue: %w", err)
+		return err
+	}
+
+	// Consume messages from queue
+	delivery, err := channel.Consume(
+		queue.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		err = fmt.Errorf("error while consuming messages: %w", err)
+		return err
+	}
+
+	// Range over delivery for messages
+	go func() {
+		for msg := range delivery {
+			var data T
+			if err := json.Unmarshal(msg.Body, &data); err != nil {
+				msg.Nack(false, false)
+				log.Println("error:", err)
+				continue
+			}
+
+			handler(data, channel)
+
+			msg.Ack(false)
+		}
+	}()
+
+	return nil
 }

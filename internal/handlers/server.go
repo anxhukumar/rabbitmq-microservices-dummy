@@ -5,11 +5,11 @@ import (
 )
 
 type Server struct {
-	PublishCh *amqp.Channel
+	AmqpConn *amqp.Connection
 }
 
-func NewServer(pubChan *amqp.Channel) *Server {
+func NewServer(conn *amqp.Connection) *Server {
 	return &Server{
-		PublishCh: pubChan,
+		AmqpConn: conn,
 	}
 }
